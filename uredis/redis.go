@@ -2,15 +2,10 @@ package uredis
 
 import (
 	"errors"
-
 	"strconv"
 	"time"
 
-	"log"
-
 	"github.com/go-redis/redis"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -50,7 +45,6 @@ func GetString(con *redis.Client, key string) (string, error) {
 		count++
 		if count > Repeated_Times {
 
-			log.Fatal("GetString 失败 ", zap.Any("key", key), zap.Error(err))
 			return "", err
 		} else {
 			time.Sleep(Repeated_Interval * time.Millisecond) //重试间隔
@@ -72,7 +66,6 @@ func SetString(con *redis.Client, key string, value interface{}, ex ...int64) er
 		}
 		count++
 		if count > Repeated_Times {
-			log.Fatal("SetString 失败", zap.Any("key", key), zap.Error(err))
 			return err
 		} else {
 			time.Sleep(Repeated_Interval * time.Millisecond) //重试间隔
@@ -85,32 +78,29 @@ func SetString(con *redis.Client, key string, value interface{}, ex ...int64) er
 // 添加有序集合
 func ZSortSet(con *redis.Client, key string, value ...redis.Z) error {
 	if err := con.ZAdd(key, value...).Err(); err != nil {
-		log.Fatal("ZSortSet 失败 ", zap.Any("key", key), zap.Error(err))
+
 		return err
 	}
 	return nil
 }
 
 // 设置对应分数
-func ZScore(con *redis.Client, key string, value string) error {
-	if err := con.ZScore(key, value).Err(); err != nil {
-		log.Fatal("ZScore 失败 ", zap.Any("key", key), zap.Error(err))
-		return err
-	}
-	return nil
+func ZScore(con *redis.Client, key string, value string) (float64, error) {
+	return con.ZScore(key, value).Result()
+
 }
 
 // 数量
 func ZCard(con *redis.Client, key string, value string) (int64, error) {
 	count, err := con.ZCard(key).Result()
 	if err != nil {
-		log.Fatal("ZScore 失败 ", zap.Any("key", key), zap.Error(err))
+
 		return count, err
 	}
 	return count, nil
 }
 
-// 获取升序集合数据 (从小到大, num[0]=start num[1]=end)
+// 获取升序集合数据 (从小到大, num[0]=start num[1]=end) index 区间
 func GetZRageSort(con *redis.Client, key string, num ...int64) ([]string, error) {
 	var n1, n2 int64 = 0, -1
 	if len(num) > 0 {
@@ -126,7 +116,7 @@ func GetZRageSort(con *redis.Client, key string, num ...int64) ([]string, error)
 	return arr, nil
 }
 
-// 获取降序集合数据  (从大到小,num[0]=start num[1]=end,默认全部)
+// 获取降序集合数据  (从大到小,num[0]=start num[1]=end,默认全部) index 区间
 func GetZRevRangeSort(con *redis.Client, key string, num ...int64) ([]string, error) {
 	var n1, n2 int64 = 0, -1
 	if len(num) > 0 {
@@ -137,13 +127,13 @@ func GetZRevRangeSort(con *redis.Client, key string, num ...int64) ([]string, er
 	}
 	arr, err := con.ZRevRange(key, n1, n2).Result()
 	if err != nil {
-		log.Fatal("GetZRevRangeSort 失败 ", zap.Any("key", key), zap.Error(err))
+
 		return nil, err
 	}
 	return arr, nil
 }
 
-// 获取score过滤后的升序集合数据  (从小到大)/min,max
+// 获取score过滤后的升序集合数据  (从小到大)/min,max 分数区间
 func GetZRevRangeByScoreSort(con *redis.Client, key string, fields ...string) ([]string, error) {
 
 	if len(fields) == 0 {
@@ -160,7 +150,7 @@ func GetZRevRangeByScoreSort(con *redis.Client, key string, fields ...string) ([
 	return arr, nil
 }
 
-// 获取score过滤后的降序集合数据  (从小到大,)/min,max
+// 获取score过滤后的降序集合数据  (从小到大,)/min,max 分数区间
 func GetZRageRangeByScoreSort(con *redis.Client, key string, fields ...string) ([]string, error) {
 
 	if len(fields) == 0 {
@@ -170,6 +160,23 @@ func GetZRageRangeByScoreSort(con *redis.Client, key string, fields ...string) (
 		Min: fields[0],
 		Max: fields[1],
 	}).Result()
+	if err != nil {
+		return nil, err
+	}
+	return arr, nil
+}
+
+// 获取区间内用户信息  (从小到大,)/min,max 分数区间
+func GetZRevRangeUserWithScores(con *redis.Client, key string, num ...int64) ([]redis.Z, error) {
+	var n1, n2 int64 = 0, -1
+	if len(num) > 0 {
+		n1 = num[0]
+	}
+	if len(num) > 1 {
+		n2 = num[1]
+	}
+
+	arr, err := con.ZRevRangeWithScores(key, n1, n2).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +222,7 @@ func LSet(con *redis.Client, key string, index int64, value interface{}) (string
 }
 
 // 获取指定范围的链表
-func Lrange(con *redis.Client, key string, num ...int64) ([]string, error) {
+func LRange(con *redis.Client, key string, num ...int64) ([]string, error) {
 	var n1, n2 int64 = 0, -1
 	if len(num) > 0 {
 		n1 = num[0]
@@ -245,19 +252,14 @@ func LLen(con *redis.Client, key string) (int64, error) {
 
 // 添加元素
 func SAdd(con *redis.Client, key string, value interface{}, ex ...int64) error {
-	if err := con.SAdd(key, value).Err(); err != nil {
-		return err
-	}
-	var t = Default_Time
-	if len(ex) > 0 {
+	err := con.SAdd(key, value).Err()
+	if err == nil && len(ex) > 0 {
+		var t = Default_Time
 		t = time.Duration(ex[0]) * time.Second
-	}
-
-	if err := con.Expire(key, t).Err(); err != nil {
+		err = con.Expire(key, t).Err()
 		return err
 	}
-
-	return nil
+	return err
 }
 
 // 获取所有元素
@@ -302,7 +304,6 @@ func GetHash(con *redis.Client, key string, field string) (string, error) {
 		}
 		count++
 		if count > Repeated_Times {
-			log.Fatal("GetHash 失败", zap.Any("key", key), zap.Error(err))
 			return "", err
 		} else {
 			time.Sleep(Repeated_Interval * time.Millisecond) //重试间隔
@@ -323,7 +324,7 @@ func GetHashAll(con *redis.Client, key string) (map[string]string, error) {
 		}
 		count++
 		if count > Repeated_Times {
-			log.Fatal("GetHashAll 失败 ", zap.Any("key", key), zap.Error(err))
+
 			return nil, err
 		} else {
 			time.Sleep(Repeated_Interval * time.Millisecond) //重试间隔
@@ -347,7 +348,7 @@ func SetHash(con *redis.Client, key, field string, value []byte) error {
 		}
 		count++
 		if count > Repeated_Times {
-			log.Fatal("SetHash 失败 ", zap.Any("key", key), zap.Error(err))
+
 			return err
 		} else {
 			time.Sleep(Repeated_Interval * time.Millisecond) //重试间隔
@@ -362,11 +363,12 @@ func DelHash(con *redis.Client, key string, field ...string) error {
 }
 
 func SetNx(con *redis.Client, key string, value interface{}, ex ...int64) (bool, error) {
-	var t = Default_Time
 	if len(ex) > 0 {
-		t = time.Duration(ex[0]) * time.Second
+		t := time.Duration(ex[0]) * time.Second
+		return con.SetNX(key, value, t).Result()
+	} else {
+		return con.SetNX(key, value, 0).Result()
 	}
-	return con.SetNX(key, value, t).Result()
 }
 
 func Keys(con *redis.Client, key string) ([]string, error) {
