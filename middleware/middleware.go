@@ -1,11 +1,16 @@
 package middleware
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"runtime/debug"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/juju/ratelimit"
 	"go.uber.org/zap"
 )
 
@@ -36,9 +41,58 @@ func Cors() gin.HandlerFunc {
 
 		defer func() {
 			if err := recover(); err != nil {
-				fmt.Printf("Panic info is", zap.Any("err", err), zap.Any("stack\n", string(debug.Stack())))
+				log.Print("Panic info is", zap.Any("err", err), zap.Any("stack\n", string(debug.Stack())))
 			}
 		}()
 		c.Next()
+	}
+}
+
+// RateLimitMiddleware gin 限流
+func RateLimitMiddleware(fillInterval time.Duration, cap, quantum int64) gin.HandlerFunc {
+	bucket := ratelimit.NewBucketWithQuantum(fillInterval, cap, quantum)
+	return func(c *gin.Context) {
+		if bucket.TakeAvailable(1) < 1 {
+			c.String(http.StatusTooManyRequests, "rate limit...")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+type CustomResponseWriter struct {
+	gin.ResponseWriter
+	body *bytes.Buffer
+}
+
+func (w CustomResponseWriter) Write(b []byte) (int, error) {
+	w.body.Write(b)
+	return w.ResponseWriter.Write(b)
+}
+
+func (w CustomResponseWriter) WriteString(s string) (int, error) {
+	w.body.WriteString(s)
+	return w.ResponseWriter.WriteString(s)
+}
+
+// AccessLogHandler 日志打印
+func AccessLogHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		blw := &CustomResponseWriter{body: bytes.NewBufferString(""), ResponseWriter: c.Writer}
+		c.Writer = blw
+
+		var requestBody string
+
+		b, _ := c.GetRawData()
+		requestBody = string(b)
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(b))
+
+		log.Print("AccessLogHandler brfore", zap.String("method", c.Request.Method),
+			zap.String("request", requestBody))
+
+		c.Next()
+		log.Print("AccessLogHandler after", zap.String("data", fmt.Sprintf("url=%s, status=%d, resp=%s",
+			c.Request.URL, c.Writer.Status(), blw.body.String())))
 	}
 }

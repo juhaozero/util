@@ -11,8 +11,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+func GetTimeMicro() int64 {
+	return time.Now().UnixMicro()
+}
+func GetTimeNano() int64 {
+	return time.Now().UnixNano()
+}
 func GetTimeMs() int64 {
-	return time.Now().UnixNano() / 1e6
+	return time.Now().UnixMilli()
 }
 func GetTime() int64 {
 	return time.Now().Unix()
@@ -20,14 +26,14 @@ func GetTime() int64 {
 func GetTimeFormat() string {
 	return time.Now().Format("2006-01-02")
 }
-func GetNumIsEven(num int32) bool {
-	return num&1 == 0
+func GetNumIsEven[T int | int32 | int64](data T) bool {
+	return int64(data)&1 == 0
 }
-func ChangeDoubleToString(data float64) string {
-	return strconv.FormatFloat(data, 'f', 2, 64)
+func ChangeDoubleToString[T float32 | float64](data T) string {
+	return strconv.FormatFloat(float64(data), 'f', 2, 64)
 }
-func ChangeIntToString(data int64) string {
-	return strconv.FormatInt(data, 10)
+func ChangeIntToString[T int | int32 | int64](data T) string {
+	return strconv.FormatInt(int64(data), 10)
 }
 func ChangeInt64(data string) int64 {
 	s, _ := strconv.ParseInt(data, 10, 64)
@@ -56,9 +62,9 @@ func GetKey(key string, field ...string) (s string) {
 }
 
 // day 偏移的天数
-func GetTimesSame(times int64, day int) bool {
+func GetTimesSame[T int | int32 | int64](times T, day int) bool {
 	now := time.Now().AddDate(0, 0, day).Format("2006-01-02")
-	sign := time.Unix(times, 0).Format("2006-01-02")
+	sign := time.Unix(int64(times), 0).Format("2006-01-02")
 	return now == sign
 }
 func GetExpTime(day int) int64 {
@@ -68,9 +74,9 @@ func GetExpTime(day int) int64 {
 }
 
 // GetRandom 随机数区间
-func GetRandom(min, max int32) int32 {
+func GetRandom[T int | int32 | int64](min, max T) T {
 	base := int32(min) + rand.Int31n(int32(max-min+1))
-	return base
+	return T(base)
 }
 
 const (
@@ -80,17 +86,17 @@ const (
 	Divide
 )
 
-func Decimal(data1, data2 float64, types int) float64 {
+func Decimal[T float32 | float64](data1, data2 T, types int) float64 {
 	var value float64
 	switch types {
 	case Multiply:
-		value, _ = decimal.NewFromFloat(data1).Mul(decimal.NewFromFloat(float64(data2))).Float64()
+		value, _ = decimal.NewFromFloat(float64(data1)).Mul(decimal.NewFromFloat(float64(data2))).Float64()
 	case Add:
-		value, _ = decimal.NewFromFloat(data1).Add(decimal.NewFromFloat(float64(data2))).Float64()
+		value, _ = decimal.NewFromFloat(float64(data1)).Add(decimal.NewFromFloat(float64(data2))).Float64()
 	case Sub:
-		value, _ = decimal.NewFromFloat(data1).Sub(decimal.NewFromFloat(float64(data2))).Float64()
+		value, _ = decimal.NewFromFloat(float64(data1)).Sub(decimal.NewFromFloat(float64(data2))).Float64()
 	case Divide:
-		value, _ = decimal.NewFromFloat(data1).Div(decimal.NewFromFloat(float64(data2))).Float64()
+		value, _ = decimal.NewFromFloat(float64(data1)).Div(decimal.NewFromFloat(float64(data2))).Float64()
 
 	}
 
@@ -105,10 +111,8 @@ func DecimalData(value float64, num int32) float64 {
 // BinarySearch 两分法
 func BinarySearch(data []int64, target int64) int {
 	left, right := 0, len(data)
-
 	for left <= right {
 		mid := left + (right-left)/2
-
 		if data[mid] > target {
 			right = mid - 1
 		} else if data[mid] < target {
