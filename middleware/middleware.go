@@ -61,21 +61,6 @@ func RateLimitMiddleware(fillInterval time.Duration, cap, quantum int64) gin.Han
 	}
 }
 
-type CustomResponseWriter struct {
-	gin.ResponseWriter
-	body *bytes.Buffer
-}
-
-func (w CustomResponseWriter) Write(b []byte) (int, error) {
-	w.body.Write(b)
-	return w.ResponseWriter.Write(b)
-}
-
-func (w CustomResponseWriter) WriteString(s string) (int, error) {
-	w.body.WriteString(s)
-	return w.ResponseWriter.WriteString(s)
-}
-
 // AccessLogHandler 日志打印
 func AccessLogHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {

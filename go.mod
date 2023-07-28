@@ -4,8 +4,10 @@ go 1.20
 
 require (
 	github.com/avast/retry-go v3.0.0+incompatible
+	github.com/aws/aws-sdk-go v1.44.311
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/json-iterator/go v1.1.12
 	github.com/juju/ratelimit v1.0.2
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230717040633-c8446edaab76
@@ -13,6 +15,8 @@ require (
 	github.com/panjf2000/gnet v1.6.7
 	github.com/shopspring/decimal v1.3.1
 	go.uber.org/zap v1.24.0
+	golang.org/x/sync v0.1.0
+	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 )
 
 require (
@@ -47,9 +51,10 @@ require (
 )
 
 require (
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.27.8 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
+	gopkg.in/yaml.v2 v2.3.0 // indirect
 )

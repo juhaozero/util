@@ -49,7 +49,7 @@ type Task struct {
 	pos int
 	// 任务需要在轮盘走多少圈才能执行
 	circle int
-	// 任务需要执行的Job，优先级高于TimeWheel中的Job
+	// 任务需要执行的Job
 	job Job
 	// 任务需要执行的次数，如果需要一直执行，设置成-1
 	times int
@@ -117,7 +117,7 @@ func (tw *TimeWheel) IsRunning() bool {
 // AddTask 向时间轮盘添加任务的开放函数
 //
 //	interval    任务的周期
-//	key         任务的key，自增唯一
+//	timerId         任务的key，自增唯一
 //	createTime  任务的创建时间
 func (tw *TimeWheel) AddTimer(interval time.Duration, times int, job Job) uint64 {
 	if interval <= 0 || times == 0 {
@@ -267,7 +267,6 @@ func (tw *TimeWheel) checkAndRunTask() {
 	}
 }
 
-// 添加任务的内部函数
 // task  		Task对象
 // byInterval   生成Task在时间轮盘位置和圈数的方式，
 func (tw *TimeWheel) addTask(task *Task, byInterval bool) {
