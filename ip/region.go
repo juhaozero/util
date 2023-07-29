@@ -13,8 +13,8 @@ import (
 
 var (
 	Search      *xdb.Searcher
-	LimitCounty = []string{""}
 	LimitCity   = []string{""}
+	LimitCounty = []string{""}
 	CN          = "中国"
 	DBFile      = "ip2region.xdb"
 )

@@ -168,7 +168,7 @@ func (tw *TimeWheel) initSlots() {
 func (tw *TimeWheel) start(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("timeWheel start recovered err: %s\n", r)
+			log.Printf("timeWheel start recovered err: %s", r)
 			log.Printf("timeWheel start recovered stack: %s\n", debug.Stack())
 			// 重新启动工作routine
 

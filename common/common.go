@@ -98,7 +98,7 @@ func GetExpDaySecond[T model.Number](day T) T {
 }
 
 // GetExpTime 获取偏移后的时间类型
-func GetExpTime(bufferTime int64) time.Time {
+func GetExpTime[T model.Number](bufferTime T) time.Time {
 	return time.Now().Add(time.Duration(bufferTime))
 }
 
@@ -110,7 +110,7 @@ func GetRandom[T model.Number](min, max T) T {
 
 // Decimal 精确浮点加减
 // num 保留小数点后几位
-func Decimal[T model.Float](data1, data2, types, num T) T {
+func Decimal[T model.Float, A model.Number](data1, data2 T, types, num A) T {
 	var value float64
 	switch types {
 	case Multiply:
