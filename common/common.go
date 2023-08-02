@@ -76,6 +76,9 @@ func GetKey(key string, field ...string) (s string) {
 	}
 	return data.String()
 }
+func GetDayTimeFormat[T model.Number](day T) string {
+	return time.Now().AddDate(0, 0, int(day)).Format("2006-01-02")
+}
 
 // GetTimeIsSame 判断时间是否是n天前/后
 // day 偏移的天数

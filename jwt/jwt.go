@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	Single = &singleflight.Group{}
+	// 单飞
+	flight = &singleflight.Group{}
 )
 
 type JWT struct {
@@ -20,10 +21,10 @@ type JWT struct {
 }
 
 var (
-	TokenExpired     = errors.New("Token is expired")
-	TokenNotValidYet = errors.New("Token not active yet")
-	TokenMalformed   = errors.New("That's not even a token")
-	TokenInvalid     = errors.New("Couldn't handle this token:")
+	ErrTokenExpired     = errors.New("token is expired")
+	ErrTokenNotValidYet = errors.New("token not active yet")
+	ErrTokenMalformed   = errors.New("that's not even a token")
+	ErrTokenInvalid     = errors.New("couldn't handle this token,")
 )
 
 // NewJWT 新建一个Jwt
@@ -32,6 +33,7 @@ func NewJWT(signingKey string, buffer, expires int64) *JWT {
 		SigningKey:  []byte(signingKey),
 		BufferTime:  buffer,
 		ExpiresTime: expires,
+		Issuer:      "jwt",
 	}
 
 }
@@ -46,7 +48,7 @@ func (j *JWT) CreateClaims(baseClaims BaseClaims) CustomClaims {
 
 		RegisteredClaims: jwt.RegisteredClaims{
 			NotBefore: jwt.NewNumericDate(time.Now().Add(time.Duration(j.BufferTime))),  // 签名生效时间
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(j.ExpiresTime))), // 过期时间 7天  配置文件
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(j.ExpiresTime))), // 过期时间 n天
 			Issuer:    j.Issuer,                                                         // 签名的发行者
 		},
 	}
@@ -61,7 +63,7 @@ func (j *JWT) CreateToken(claims CustomClaims) (string, error) {
 
 // CreateTokenByOldToken 旧token 换新token 使用归并回源避免并发问题
 func (j *JWT) CreateTokenByOldToken(oldToken string, claims CustomClaims) (string, error) {
-	v, err, _ := Single.Do("JWT:"+oldToken, func() (interface{}, error) {
+	v, err, _ := flight.Do("JWT:"+oldToken, func() (interface{}, error) {
 		return j.CreateToken(claims)
 	})
 	return v.(string), err
@@ -75,14 +77,14 @@ func (j *JWT) ParseToken(tokenString string) (*CustomClaims, error) {
 	if err != nil {
 		if ve, ok := err.(*jwt.ValidationError); ok {
 			if ve.Errors&jwt.ValidationErrorMalformed != 0 {
-				return nil, TokenMalformed
+				return nil, ErrTokenMalformed
 			} else if ve.Errors&jwt.ValidationErrorExpired != 0 {
 				// Token is expired
-				return nil, TokenExpired
+				return nil, ErrTokenExpired
 			} else if ve.Errors&jwt.ValidationErrorNotValidYet != 0 {
-				return nil, TokenNotValidYet
+				return nil, ErrTokenNotValidYet
 			} else {
-				return nil, TokenInvalid
+				return nil, ErrTokenInvalid
 			}
 		}
 	}
@@ -90,9 +92,9 @@ func (j *JWT) ParseToken(tokenString string) (*CustomClaims, error) {
 		if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
 			return claims, nil
 		}
-		return nil, TokenInvalid
+		return nil, ErrTokenInvalid
 
 	} else {
-		return nil, TokenInvalid
+		return nil, ErrTokenInvalid
 	}
 }

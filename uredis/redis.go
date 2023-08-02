@@ -36,15 +36,11 @@ func GetString(con *redis.Client, key string) (string, error) {
 	count := 1
 	for {
 		result, err := con.Get(key).Result()
-		if err == nil {
+		if err == nil || err == redis.Nil {
 			return result, nil
-		}
-		if err == redis.Nil {
-			return "", nil
 		}
 		count++
 		if count > Repeated_Times {
-
 			return "", err
 		} else {
 			time.Sleep(Repeated_Interval * time.Millisecond) //重试间隔
@@ -400,6 +396,7 @@ func DecrKey(con *redis.Client, key string) (int64, error) {
 	return i, err
 }
 
+// 自增
 func Incr(con *redis.Client, key string) error {
 
 	return con.Incr(key).Err()
@@ -409,7 +406,12 @@ func IncrBy(con *redis.Client, key string, val int64) (int64, error) {
 	return con.IncrBy(key, val).Result()
 }
 
+// 自减
 func Decr(con *redis.Client, key string) error {
 	return con.Decr(key).Err()
 
+}
+
+func DecrBy(con *redis.Client, key string, val int64) error {
+	return con.DecrBy(key, val).Err()
 }
