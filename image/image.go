@@ -7,6 +7,7 @@ import (
 	"image/jpeg"
 )
 
+// 改变图片类型
 func ChangeImageByte(file []byte) ([]byte, error) {
 	f := []byte{}
 	// 转化报错说明不是图片类型

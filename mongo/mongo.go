@@ -12,13 +12,13 @@ import (
 
 var (
 	client *mongo.Client
-	Contex context.Context
+	contex context.Context // 全局上下文
 )
 
 func NewMangoClient(conf *Config) {
-	Contex = context.Background()
+	contex = context.Background()
 	opts := NewMangoOpts(conf)
-	c, err := mongo.Connect(Contex, opts)
+	c, err := mongo.Connect(contex, opts)
 	if err != nil {
 		panic(err)
 		//log.Fatal(err)
@@ -26,6 +26,7 @@ func NewMangoClient(conf *Config) {
 	client = c
 }
 
+// 初始化一个mango配置项
 func NewMangoOpts(conf *Config) *options.ClientOptions {
 	var clientOpts = options.Client().
 		SetAuth(options.Credential{
