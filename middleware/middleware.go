@@ -81,3 +81,36 @@ func AccessLogHandler() gin.HandlerFunc {
 			c.Request.URL, c.Writer.Status(), blw.body.String())))
 	}
 }
+
+// Logs 限制日志输出
+func Logs() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		gin.LoggerWithConfig(gin.LoggerConfig{
+			Formatter: func(param gin.LogFormatterParams) string {
+				//健康检查不输出
+				if param.Path == "/" {
+					return ""
+				}
+				var statusColor, methodColor, resetColor string
+				if param.IsOutputColor() {
+					statusColor = param.StatusCodeColor()
+					methodColor = param.MethodColor()
+					resetColor = param.ResetColor()
+				}
+				if param.Latency > time.Minute {
+					param.Latency = param.Latency - param.Latency%time.Second
+				}
+				return fmt.Sprintf("[GIN] %v |%s %3d %s| %13v | %15s |%s %-7s %s %#v\n%s",
+					param.TimeStamp.Format("2006/01/02 - 15:04:05"),
+					statusColor, param.StatusCode, resetColor,
+					param.Latency,
+					param.ClientIP,
+					methodColor, param.Method, resetColor,
+					param.Path,
+					param.ErrorMessage,
+				)
+			},
+			Output: gin.DefaultWriter,
+		})
+	}
+}

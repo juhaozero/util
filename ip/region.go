@@ -11,18 +11,60 @@ import (
 	"github.com/lionsoul2014/ip2region/binding/golang/xdb"
 )
 
-var (
-	Search      *xdb.Searcher
-	LimitCity   = []string{""}
-	LimitCounty = []string{""}
-	CN          = "中国"
-	DBFile      = "ip2region.xdb"
+type Region struct {
+	CallBack string `json:"callback"`
+}
+type RegionCity struct {
+	Country  string `json:"country"`
+	Province string `json:"province"`
+}
+
+const (
+	// 第三方ip查询库
+	GetUserLoction = "https://ip.useragentinfo.com/jsonp?&ip=IP"
 )
+
+var (
+	CN = "中国"
+)
+
+type IpRegion struct {
+	Search      *xdb.Searcher // 本地搜索对象
+	LimitCity   []string      // 限制的城市
+	LimitCounty []string      // 限制的国家
+}
+
+func NewIpRegion(dbPath string, options ...IpOption) *IpRegion {
+	search := InitLocalData(dbPath)
+	ip := &IpRegion{
+		Search: search,
+	}
+	for _, option := range options {
+		option(ip)
+	}
+	return ip
+}
+
+type IpOption func(*IpRegion)
+
+// 限制具体城市
+func WithLimitCicty(limitCity []string) IpOption {
+	return func(i *IpRegion) {
+		i.LimitCity = limitCity
+	}
+}
+
+// 限制具体国家
+func WithLimitCounty(LimitCounty []string) IpOption {
+	return func(ip *IpRegion) {
+		ip.LimitCounty = LimitCounty
+	}
+}
 
 // ### 使用ip包前先调用,内存中搜索
 // InitLocalData 初始化本地搜索对象
 // dbPath 本地ip库路径
-func InitLocalData(dbPath string) {
+func InitLocalData(dbPath string) *xdb.Searcher {
 
 	cbuff, err := xdb.LoadContentFromFile(dbPath)
 	if err != nil {
@@ -33,28 +75,19 @@ func InitLocalData(dbPath string) {
 	if err != nil {
 		panic(err)
 	}
-
-	Search = search
+	return search
 }
 
-type Region struct {
-	CallBack string `json:"callback"`
-}
-type RegionCity struct {
-	Country  string `json:"country"`
-	Province string `json:"province"`
-}
-
-const (
-	//
-	GetUserLoction = "https://ip.useragentinfo.com/jsonp?&ip=IP"
-)
-
-// CheckIsCountry 检查是否限制
-func CheckIsCountry(r *http.Request) bool {
+/*
+*
+CheckIsCountry 检查是否限制
+固定限制中国大陆
+*
+*/
+func (i *IpRegion) CheckIsCountry(r *http.Request) bool {
 
 	// 获取ip归属
-	region := GetCountry(r)
+	region := i.getCountry(r)
 
 	if region.Country == CN {
 		city := region.Province
@@ -64,15 +97,16 @@ func CheckIsCountry(r *http.Request) bool {
 			return true
 		}
 	}
-	// 其他地区,
-	for _, v := range LimitCity {
-		if v == region.Province {
+
+	// 其他地区限制
+	for _, v := range i.LimitCity {
+		if strings.Contains(v, region.Province) {
 			return true
 		}
 	}
-	// 其他国家
-	for _, v := range LimitCounty {
-		if v == region.Country {
+	// 包含其他国家
+	for _, v := range i.LimitCounty {
+		if strings.Contains(v, region.Country) {
 			return true
 		}
 	}
@@ -81,19 +115,19 @@ func CheckIsCountry(r *http.Request) bool {
 }
 
 // 获取玩家ip 归属
-func GetCountry(r *http.Request) *RegionCity {
+func (i *IpRegion) getCountry(r *http.Request) *RegionCity {
 	ip := GexExenIp(r)
-	region, err := ServerGetUserLoction(ip)
+	region, err := i.serverGetUserLoction(ip)
 
 	if err == nil {
 		return region
 	} else {
-		region, _ = LocalGetRegion(ip)
+		region, _ = i.localGetRegion(ip)
 	}
 	return region
 }
 
-// 查询用户ip地址
+// GexExenIp 查询用户ip地址
 func GexExenIp(r *http.Request) string {
 	xForwardedFor := r.Header.Get("X-Forwarded-For")
 	ip := strings.TrimSpace(strings.Split(xForwardedFor, ",")[0])
@@ -112,8 +146,9 @@ func GexExenIp(r *http.Request) string {
 	return ""
 }
 
+// 查询第三方的ip包
 // ServerGetUserLoction 用户ip归属
-func ServerGetUserLoction(ip string) (*RegionCity, error) {
+func (i *IpRegion) serverGetUserLoction(ip string) (*RegionCity, error) {
 
 	url := GetUserLoction
 	url = strings.ReplaceAll(url, "IP", ip)
@@ -141,10 +176,10 @@ func ServerGetUserLoction(ip string) (*RegionCity, error) {
 }
 
 // ? 本地的,网络拿不到备用(这个用代理没法识别准确地址
-func LocalGetRegion(ip string) (*RegionCity, error) {
+func (i *IpRegion) localGetRegion(ip string) (*RegionCity, error) {
 
 	var region *RegionCity
-	data, err := Search.SearchByStr(ip)
+	data, err := i.Search.SearchByStr(ip)
 	if err != nil {
 		return region, err
 	}

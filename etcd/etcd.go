@@ -15,8 +15,6 @@ type Etcd struct {
 	*ServiceRegister // 租约注册
 }
 
-type EdOption func(*Etcd)
-
 func NewEtcd(addr []string, userName, password string, op ...EdOption) (*Etcd, error) {
 	conf := clientv3.Config{
 		Endpoints:   addr,

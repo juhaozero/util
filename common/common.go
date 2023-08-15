@@ -161,11 +161,32 @@ func IsSameHour(t1, t2 time.Time) bool {
 	return t1.Hour() == t2.Hour() && t1.Day() == t2.Day() && t1.Month() == t2.Month() && t1.Year() == t2.Year()
 }
 
-// GetMondayZero 获取本周一零点
-func GetMondayZero(t time.Time) time.Time {
-	t = GetToday(t)
-	weekDay := WeekDay(t)
-	return t.AddDate(0, 0, 1-weekDay)
+/*
+*
+获取指定周一的时间
+week:
+
+	-1:上周
+	 0:本周
+	 1:下周
+
+*
+*/
+func WeekIntervalTime(week int) (startTime string) {
+	now := time.Now()
+	offset := int(time.Monday - now.Weekday())
+	//周日做特殊判断 因为time.Monday = 0
+	if offset > 0 {
+		offset = -6
+	}
+
+	year, month, day := now.Date()
+	thisWeek := time.Date(year, month, day, 0, 0, 0, 0, time.Local)
+
+	startTime = thisWeek.AddDate(0, 0, offset+7*week).Format("2006-01-02")
+	//endTime = thisWeek.AddDate(0, 0, offset+6+7*week).Format("2006-01-02")
+
+	return startTime
 }
 
 // GetRandom 随机数区间

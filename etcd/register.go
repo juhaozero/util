@@ -16,6 +16,7 @@ type ServiceRegister struct {
 	canclefunc    func()
 	keepAliveChan <-chan *clientv3.LeaseKeepAliveResponse
 }
+type EdOption func(*Etcd)
 
 // 注册
 func WithRegister(timeNum int64) EdOption {
