@@ -25,10 +25,11 @@ type TimeWheel struct {
 	slotNums          int
 	addTaskChannel    chan *Task
 	removeTaskChannel chan *Task
-	workerChan        chan Job
-	workerNum         int
-	cancel            context.CancelFunc
-	autoId            uint64
+
+	workerChan chan Job
+	workerNum  int
+	cancel     context.CancelFunc
+	autoId     uint64
 	// Map结构来存储Task对象，key是Task.key，value是Task在双向链表中的存储对象
 	taskRecords *sync.Map
 	isRunning   bool
@@ -49,10 +50,11 @@ type Task struct {
 	pos int
 	// 任务需要在轮盘走多少圈才能执行
 	circle int
-	// 任务需要执行的Job
+	// 任务需要执行的Job，优先级高于TimeWheel中的Job
 	job Job
 	// 任务需要执行的次数，如果需要一直执行，设置成-1
 	times int
+	close chan struct{}
 }
 
 var tw *TimeWheel
@@ -117,7 +119,7 @@ func (tw *TimeWheel) IsRunning() bool {
 // AddTask 向时间轮盘添加任务的开放函数
 //
 //	interval    任务的周期
-//	timerId         任务的key，自增唯一
+//	key         任务的key，自增唯一
 //	createTime  任务的创建时间
 func (tw *TimeWheel) AddTimer(interval time.Duration, times int, job Job) uint64 {
 	if interval <= 0 || times == 0 {
@@ -133,8 +135,10 @@ func (tw *TimeWheel) AddTimer(interval time.Duration, times int, job Job) uint64
 		createdTime: time.Now(),
 		job:         job,
 		times:       times,
+		close:       make(chan struct{}),
 	}
 	tw.addTaskChannel <- task
+	<-task.close
 	return task.timerId
 }
 
@@ -168,7 +172,7 @@ func (tw *TimeWheel) initSlots() {
 func (tw *TimeWheel) start(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("timeWheel start recovered err: %s", r)
+			log.Printf("timeWheel start recovered err: %s\n", r)
 			log.Printf("timeWheel start recovered stack: %s\n", debug.Stack())
 			// 重新启动工作routine
 
@@ -183,8 +187,8 @@ func (tw *TimeWheel) start(ctx context.Context) {
 		case <-tw.ticker.C:
 			tw.checkAndRunTask()
 		case task := <-tw.addTaskChannel:
-			// 此处利用Task.createTime来定位任务在时间轮盘的位置和执行圈数
 			tw.addTask(task, true)
+			close(task.close)
 		case task := <-tw.removeTaskChannel:
 			tw.removeTask(task)
 		case <-d:
@@ -213,7 +217,7 @@ func (tw *TimeWheel) wokerRoutine(ctx context.Context) {
 		case <-d:
 			return
 		case execFunc := <-tw.workerChan:
-			execFunc()
+			go execFunc()
 		}
 	}
 }
@@ -267,6 +271,7 @@ func (tw *TimeWheel) checkAndRunTask() {
 	}
 }
 
+// 添加任务的内部函数
 // task  		Task对象
 // byInterval   生成Task在时间轮盘位置和圈数的方式，
 func (tw *TimeWheel) addTask(task *Task, byInterval bool) {
