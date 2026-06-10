@@ -1,15 +1,14 @@
 package mongo
 
 import (
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // 插入一个
-func InsertOne[T Bson](collection *mongo.Collection, data T) (string, error) {
+func (m *MongoClient) InsertOne(collectionName string, data any) (string, error) {
 	var id string
-	result, err := collection.InsertOne(contex, data)
+	result, err := m.GetMongoCollection(collectionName).InsertOne(m.contex, data)
 	if err != nil {
 		return id, err
 	}
@@ -18,9 +17,10 @@ func InsertOne[T Bson](collection *mongo.Collection, data T) (string, error) {
 }
 
 // 插入多个
-func InsertMany[T Bson](collection *mongo.Collection, data []T) ([]string, error) {
+func (m *MongoClient) InsertMany(collectionName string, data []any) ([]string, error) {
+	collection := m.GetMongoCollection(collectionName)
 	var ids = []string{}
-	result, err := collection.InsertMany(contex, []interface{}{data}, options.InsertMany().SetOrdered(false))
+	result, err := collection.InsertMany(m.contex, data, options.InsertMany().SetOrdered(false))
 	if err != nil {
 		return ids, err
 	}
@@ -32,18 +32,18 @@ func InsertMany[T Bson](collection *mongo.Collection, data []T) ([]string, error
 }
 
 // 查找全部排序
-func FindSort[T Bson](collection *mongo.Collection, data T, sort int, opts ...*options.FindOptions) ([]bson.M, error) {
+func (m *MongoClient) FindSort(collectionName string, data any, sort int, opts ...*options.FindOptions) ([]bson.M, error) {
 	var result []bson.M
 	// 1升序或者-1降序
 	find := options.Find().SetSort(sort)
 	opts = append(opts, find)
 
-	cursor, err := collection.Find(contex, data, opts...)
+	cursor, err := m.GetMongoCollection(collectionName).Find(m.contex, data, opts...)
 	if err != nil {
 		return result, err
 	}
 
-	if err := cursor.All(contex, &result); err != nil {
+	if err := cursor.All(m.contex, &result); err != nil {
 		return result, err
 	}
 

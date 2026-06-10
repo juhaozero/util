@@ -22,7 +22,6 @@ func NewDispatcher() (*Dispatcher, error) {
 // AddTask 添加任务，把任务压入任务缓冲池
 func (d *Dispatcher) AddTask(data func()) {
 	d.workerPool.Submit(data)
-	//d.jobQueue <- data
 }
 
 // NewWorkPool

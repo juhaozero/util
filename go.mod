@@ -1,6 +1,6 @@
 module github.com/juhaozero/util
 
-go 1.20
+go 1.25.0
 
 require (
 	github.com/avast/retry-go v3.0.0+incompatible
@@ -8,6 +8,7 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/json-iterator/go v1.1.12
 	github.com/juju/ratelimit v1.0.2
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230717040633-c8446edaab76
@@ -16,7 +17,8 @@ require (
 	github.com/shopspring/decimal v1.3.1
 	go.mongodb.org/mongo-driver v1.12.0
 	go.uber.org/zap v1.24.0
-	golang.org/x/sync v0.1.0
+	golang.org/x/image v0.42.0
+	golang.org/x/sync v0.21.0
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 	gorm.io/gorm v1.25.2
 )
@@ -84,7 +86,7 @@ require (
 	golang.org/x/crypto v0.9.0
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

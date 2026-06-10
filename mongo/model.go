@@ -7,8 +7,9 @@ type Config struct {
 	PassWord string
 	Addr     string
 	Port     int32
+	DbName   string
 }
-type Bson interface {
+type BsonStructs interface {
 	bson.D | bson.M | bson.A
 }
 

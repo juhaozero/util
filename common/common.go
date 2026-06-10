@@ -10,7 +10,6 @@ import (
 	"github.com/juhaozero/util/model"
 
 	"github.com/google/uuid"
-	json "github.com/json-iterator/go"
 	"github.com/shopspring/decimal"
 )
 
@@ -28,17 +27,6 @@ func NumberToString[T model.Number](data T) string {
 func StringToNumber[T model.Number](data string) T {
 	s, _ := strconv.ParseInt(data, 10, 64)
 	return T(s)
-}
-
-// Marshal 结构体转json格式字符串
-func Marshal(data any) (s string) {
-	s, _ = json.MarshalToString(data)
-	return s
-}
-
-// Unmarshal json格式字符串转结构体
-func Unmarshal(s string, data any) error {
-	return json.UnmarshalFromString(s, data)
 }
 
 // GetOnlyId 获取唯一id
@@ -141,17 +129,4 @@ func StructToMapString(obj any) map[string]string {
 		mapping[jTag] = fmt.Sprint(field.Interface())
 	}
 	return mapping
-}
-func RandomInt(min, max int) int {
-	return min + rand.Intn(max-min)
-}
-
-// RandomString 随机字符串
-func RandomString(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[RandomInt(0, len(letters))]
-	}
-	return string(b)
 }

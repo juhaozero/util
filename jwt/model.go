@@ -1,7 +1,7 @@
 package jwt
 
 import (
-	jwt "github.com/golang-jwt/jwt/v4"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 type CustomClaims struct {
@@ -10,7 +10,7 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 type BaseClaims struct {
-	UUID     string
-	Username string
-	Name     string
+	UserId       string
+	Username     string
+	CustomParams any
 }

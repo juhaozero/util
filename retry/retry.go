@@ -4,21 +4,24 @@ import (
 	"github.com/avast/retry-go"
 )
 
+type RetryClient struct {
+	retryStrategy []retry.Option
+}
+
 var (
 	RetryStrategy = []retry.Option{}
 )
 
 // 重试配置
-func NewRetryOption(retry []retry.Option) {
-	if retry == nil {
-		panic("data err")
+func NewRetryOption(retryStrategy []retry.Option) *RetryClient {
+	return &RetryClient{
+		retryStrategy: retryStrategy,
 	}
-	RetryStrategy = retry
 }
 
 // 重试请求
-func RetryFuncInterface(f func() error) error {
-	err := retry.Do(f, RetryStrategy...)
+func (r *RetryClient) RetryFuncInterface(f func() error) error {
+	err := retry.Do(f, r.retryStrategy...)
 	if err != nil {
 		return err
 	}

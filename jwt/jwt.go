@@ -4,12 +4,11 @@ import (
 	"errors"
 	"time"
 
-	jwt "github.com/golang-jwt/jwt/v4"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"golang.org/x/sync/singleflight"
 )
 
 var (
-	// 单飞
 	flight = &singleflight.Group{}
 )
 
@@ -19,13 +18,6 @@ type JWT struct {
 	ExpiresTime int64
 	Issuer      string
 }
-
-var (
-	ErrTokenExpired     = errors.New("token is expired")
-	ErrTokenNotValidYet = errors.New("token not active yet")
-	ErrTokenMalformed   = errors.New("that's not even a token")
-	ErrTokenInvalid     = errors.New("couldn't handle this token,")
-)
 
 // NewJWT 新建一个Jwt
 func NewJWT(signingKey string, buffer, expires int64) *JWT {
@@ -75,26 +67,22 @@ func (j *JWT) ParseToken(tokenString string) (*CustomClaims, error) {
 		return j.SigningKey, nil
 	})
 	if err != nil {
-		if ve, ok := err.(*jwt.ValidationError); ok {
-			if ve.Errors&jwt.ValidationErrorMalformed != 0 {
-				return nil, ErrTokenMalformed
-			} else if ve.Errors&jwt.ValidationErrorExpired != 0 {
-				// Token is expired
-				return nil, ErrTokenExpired
-			} else if ve.Errors&jwt.ValidationErrorNotValidYet != 0 {
-				return nil, ErrTokenNotValidYet
-			} else {
-				return nil, ErrTokenInvalid
-			}
-		}
+		return nil, err
 	}
 	if token != nil {
 		if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
 			return claims, nil
 		}
-		return nil, ErrTokenInvalid
-
-	} else {
-		return nil, ErrTokenInvalid
+		return nil, errors.New("token is invalid")
 	}
+	return nil, errors.New("token is invalid")
+}
+
+// RenewToken 续期Token
+func (j *JWT) RenewToken(claims CustomClaims, token string) (string, error) {
+	// 没到过期时间,且在缓冲时间内就续期
+	if claims.ExpiresAt.Unix()-time.Now().Unix() < (j.BufferTime) {
+		return j.CreateTokenByOldToken(token, claims)
+	}
+	return "", nil
 }
