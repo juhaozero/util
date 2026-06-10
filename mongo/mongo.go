@@ -30,9 +30,6 @@ func NewMangoClient(conf *Config) (*MongoClient, error) {
 		contex: ctx,
 	}
 	client.db = client.GetClientDataBase(conf.DbName)
-	if err != nil {
-		return nil, err
-	}
 	return client, nil
 }
 
