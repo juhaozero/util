@@ -7,7 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"util/model"
+
+	"github.com/juhaozero/util/model"
 
 	"github.com/google/uuid"
 	json "github.com/json-iterator/go"
@@ -26,8 +27,8 @@ func GetTimeMs() int64 {
 func GetTime() int64 {
 	return time.Now().Unix()
 }
-func GetTimeFormat() string {
-	return time.Now().Format("2006-01-02")
+func GetTimeFormat(format string) string {
+	return time.Now().Format(format)
 }
 func GetNumIsEven[T model.Number](data T) bool {
 	return int64(data)&1 == 0
@@ -67,24 +68,24 @@ func GetOnlyId() string {
 }
 
 // GetKey 拼接key
-func GetKey(key string, field ...string) (s string) {
+func GetKey(key string, separator string, field ...string) (s string) {
 	data := strings.Builder{}
 	data.WriteString(key)
 	for _, v := range field {
-		data.WriteString("_")
+		data.WriteString(separator)
 		data.WriteString(v)
 	}
 	return data.String()
 }
-func GetDayTimeFormat[T model.Number](day T) string {
-	return time.Now().AddDate(0, 0, int(day)).Format("2006-01-02")
+func GetDayTimeFormat[T model.Number](day T, format string) string {
+	return time.Now().AddDate(0, 0, int(day)).Format(format)
 }
 
 // GetTimeIsSame 判断时间是否是n天前/后
 // day 偏移的天数
-func GetTimeIsSame[T model.Number](times, day T) bool {
-	now := time.Now().AddDate(0, 0, int(day)).Format("2006-01-02")
-	sign := time.Unix(int64(times), 0).Format("2006-01-02")
+func GetTimeIsSame[T model.Number](times, day T, format string) bool {
+	now := time.Now().AddDate(0, 0, int(day)).Format(format)
+	sign := time.Unix(int64(times), 0).Format(format)
 	return now == sign
 }
 
@@ -272,4 +273,17 @@ func StructToMapString(obj any) map[string]string {
 		mapping[jTag] = fmt.Sprint(field.Interface())
 	}
 	return mapping
+}
+func RandomInt(min, max int) int {
+	return min + rand.Intn(max-min)
+}
+
+// RandomString 随机字符串
+func RandomString(n int) string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[RandomInt(0, len(letters))]
+	}
+	return string(b)
 }

@@ -1,4 +1,4 @@
-module util
+module github.com/juhaozero/util
 
 go 1.20
 
