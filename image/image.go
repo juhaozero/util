@@ -19,7 +19,7 @@ const (
 )
 
 // 改变图片类型
-func ChangeImageByteToJpeg(file []byte, imageType ImageType) ([]byte, error) {
+func ChangeImageByte(file []byte, imageType ImageType) ([]byte, error) {
 	f := []byte{}
 	// 转化报错说明不是图片类型
 	img, _, err := image.Decode(bytes.NewReader(file))
