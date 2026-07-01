@@ -19,6 +19,7 @@ require (
 	golang.org/x/image v0.42.0
 	golang.org/x/sync v0.21.0
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/gorm v1.25.2
 )
 
