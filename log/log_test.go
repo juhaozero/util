@@ -32,18 +32,6 @@ func TestNewAndWrite(t *testing.T) {
 
 }
 
-func TestInitDefault(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.Filename = ""
-	cfg.Console = true
-
-	if err := Init(cfg); err != nil {
-		t.Fatalf("Init() error = %v", err)
-	}
-
-	Info("init default logger")
-}
-
 func TestParseLevel(t *testing.T) {
 	tests := map[string]string{
 		"debug": "debug",

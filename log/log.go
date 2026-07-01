@@ -135,26 +135,6 @@ func (l *Logger) Errorf(template string, args ...any) { l.sugar.Errorf(template,
 func (l *Logger) Fatalf(template string, args ...any) { l.sugar.Fatalf(template, args...) }
 func (l *Logger) Panicf(template string, args ...any) { l.sugar.Panicf(template, args...) }
 
-// 全局便捷方法，委托给 Default()。
-
-func Debug(msg string, fields ...zap.Field) { Default().Debug(msg, fields...) }
-func Info(msg string, fields ...zap.Field)  { Default().Info(msg, fields...) }
-func Warn(msg string, fields ...zap.Field)  { Default().Warn(msg, fields...) }
-func Error(msg string, fields ...zap.Field) { Default().Error(msg, fields...) }
-func Fatal(msg string, fields ...zap.Field) { Default().Fatal(msg, fields...) }
-func Panic(msg string, fields ...zap.Field) { Default().Panic(msg, fields...) }
-
-func Debugf(template string, args ...any) { Default().Debugf(template, args...) }
-func Infof(template string, args ...any)  { Default().Infof(template, args...) }
-func Warnf(template string, args ...any)  { Default().Warnf(template, args...) }
-func Errorf(template string, args ...any) { Default().Errorf(template, args...) }
-func Fatalf(template string, args ...any) { Default().Fatalf(template, args...) }
-func Panicf(template string, args ...any) { Default().Panicf(template, args...) }
-
-func With(fields ...zap.Field) *Logger { return Default().With(fields...) }
-func Named(name string) *Logger        { return Default().Named(name) }
-func Sync() error                      { return Default().Sync() }
-
 func parseLevel(level string) (zapcore.Level, error) {
 	var lv zapcore.Level
 	if err := lv.UnmarshalText([]byte(strings.ToLower(level))); err != nil {
