@@ -2,42 +2,118 @@ package etcd
 
 import (
 	"context"
-	"log"
+	"maps"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
+	"github.com/juhaozero/util/log"
+	"go.uber.org/zap"
 )
 
-// GetDiscovery 获取所有指定服务键的值
-// op： etcd 的组件
+// ServiceEventType 服务变更类型。
+type ServiceEventType int
+
+const (
+	ServicePut ServiceEventType = iota
+	ServiceDelete
+)
+
+// ServiceEvent 服务发现变更事件。
+type ServiceEvent struct {
+	Type  ServiceEventType
+	Key   string
+	Value string
+}
+
+// ServiceChangeHandler 服务变更回调。
+type ServiceChangeHandler func(event ServiceEvent)
+
+// GetDiscovery 按前缀获取服务列表，并确保只启动一个 watcher。
 func (ed *Etcd) GetDiscovery(prefix string, op ...clientv3.OpOption) ([]string, error) {
-	resp, err := ed.client.Get(context.Background(), prefix, op...)
+	if err := ed.ensureOpen(); err != nil {
+		return nil, err
+	}
+
+	opts := append([]clientv3.OpOption{clientv3.WithPrefix()}, op...)
+	resp, err := ed.GetCtx(context.Background(), prefix, opts...)
 	if err != nil {
 		return nil, err
 	}
-	addrs := ed.extractAddrs(resp)
 
-	go ed.watcher(prefix)
+	addrs := ed.extractAddrs(resp)
+	ed.ensureWatcher(prefix)
 	return addrs, nil
 }
 
-// watcher 监听订阅
-func (ed *Etcd) watcher(prefix string) {
-	rch := ed.client.Watch(context.Background(), prefix, clientv3.WithPrefix())
+// WatchServices 监听指定前缀下的服务变更。
+func (ed *Etcd) WatchServices(ctx context.Context, prefix string, handler ServiceChangeHandler) error {
+	if err := ed.ensureOpen(); err != nil {
+		return err
+	}
+	if handler != nil {
+		ed.locker.Lock()
+		prev := ed.onChange
+		ed.onChange = func(event ServiceEvent) {
+			if prev != nil {
+				prev(event)
+			}
+			handler(event)
+		}
+		ed.locker.Unlock()
+	}
+	ed.ensureWatcherWithContext(ctx, prefix)
+	return nil
+}
+
+// StopWatch 停止指定前缀的 watcher。
+func (ed *Etcd) StopWatch(prefix string) {
+	ed.watchMu.Lock()
+	defer ed.watchMu.Unlock()
+	if cancel, ok := ed.watchCancel[prefix]; ok {
+		cancel()
+		delete(ed.watchCancel, prefix)
+	}
+}
+
+func (ed *Etcd) ensureWatcher(prefix string) {
+	ed.ensureWatcherWithContext(context.Background(), prefix)
+}
+
+func (ed *Etcd) ensureWatcherWithContext(parent context.Context, prefix string) {
+	ed.watchMu.Lock()
+	defer ed.watchMu.Unlock()
+	if _, ok := ed.watchCancel[prefix]; ok {
+		return
+	}
+
+	ctx, cancel := context.WithCancel(parent)
+	ed.watchCancel[prefix] = cancel
+	go ed.watcher(ctx, prefix)
+}
+
+func (ed *Etcd) watcher(ctx context.Context, prefix string) {
+	rch := ed.client.Watch(ctx, prefix, clientv3.WithPrefix())
 	for wresp := range rch {
+		if wresp.Err() != nil {
+			log.Default().Warn("etcd watch error", zap.String("prefix", prefix), zap.Error(wresp.Err()))
+		}
 		for _, ev := range wresp.Events {
 			switch ev.Type {
 			case mvccpb.PUT:
-				// 修改或者新增
 				ed.setServiceList(string(ev.Kv.Key), string(ev.Kv.Value))
 			case mvccpb.DELETE:
 				ed.delServiceList(string(ev.Kv.Key))
 			}
 		}
 	}
+
+	ed.watchMu.Lock()
+	if cancel, ok := ed.watchCancel[prefix]; ok && cancel != nil {
+		delete(ed.watchCancel, prefix)
+	}
+	ed.watchMu.Unlock()
 }
 
-// extractAddrs 获取对应的值
 func (ed *Etcd) extractAddrs(resp *clientv3.GetResponse) []string {
 	addrs := make([]string, 0)
 	if resp == nil || resp.Kvs == nil {
@@ -45,36 +121,53 @@ func (ed *Etcd) extractAddrs(resp *clientv3.GetResponse) []string {
 	}
 	for i := range resp.Kvs {
 		if v := resp.Kvs[i].Value; v != nil {
-			ed.setServiceList(string(resp.Kvs[i].Key), string(resp.Kvs[i].Value))
+			ed.setServiceList(string(resp.Kvs[i].Key), string(v))
 			addrs = append(addrs, string(v))
 		}
 	}
 	return addrs
 }
 
-// SetServiceList 设置服务发现
 func (ed *Etcd) setServiceList(key, val string) {
 	ed.locker.Lock()
-	defer ed.locker.Unlock()
 	ed.discovery[key] = val
-	log.Printf("发现服务 key=%s,value=%s", key, val)
+	handler := ed.onChange
+	ed.locker.Unlock()
+
+	log.Default().Info("发现服务", zap.String("key", key), zap.String("value", val))
+	if handler != nil {
+		handler(ServiceEvent{Type: ServicePut, Key: key, Value: val})
+	}
 }
 
-// DelServiceList 删除服务发现
 func (ed *Etcd) delServiceList(key string) {
 	ed.locker.Lock()
-	defer ed.locker.Unlock()
 	delete(ed.discovery, key)
-	log.Printf("服务下线: %s", key)
+	handler := ed.onChange
+	ed.locker.Unlock()
+
+	log.Default().Info("服务下线", zap.String("key", key))
+	if handler != nil {
+		handler(ServiceEvent{Type: ServiceDelete, Key: key})
+	}
 }
 
-// GetServiceList 获取服务发现的值
+// GetServiceList 获取当前服务发现快照。
 func (ed *Etcd) GetServiceList() map[string]string {
-	tmp := map[string]string{}
 	ed.locker.RLock()
 	defer ed.locker.RUnlock()
-	for k, v := range ed.discovery {
-		tmp[k] = v
-	}
+	tmp := make(map[string]string, len(ed.discovery))
+	maps.Copy(tmp, ed.discovery)
 	return tmp
+}
+
+// GetServiceValues 获取所有服务地址值。
+func (ed *Etcd) GetServiceValues() []string {
+	ed.locker.RLock()
+	defer ed.locker.RUnlock()
+	values := make([]string, 0, len(ed.discovery))
+	for _, v := range ed.discovery {
+		values = append(values, v)
+	}
+	return values
 }

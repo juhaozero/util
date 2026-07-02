@@ -96,6 +96,7 @@ func (j *JWT) CreateClaims(baseClaims BaseClaims) CustomClaims {
 	}
 }
 
+// renewClaims 续期 claims
 func (j *JWT) renewClaims(old CustomClaims) CustomClaims {
 	now := time.Now()
 	old.BufferTime = int64(j.BufferTime / time.Second)

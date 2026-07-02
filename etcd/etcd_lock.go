@@ -2,25 +2,38 @@ package etcd
 
 import (
 	"context"
-	"log"
+	"fmt"
 
 	"github.com/coreos/etcd/clientv3/concurrency"
 )
 
-// EtcdLock 上锁处理
-func (e *Etcd) EtcdLock(key string, times int, f func()) {
-	s, _ := concurrency.NewSession(e.client, concurrency.WithTTL(times))
-	defer s.Close()
-
-	mu := concurrency.NewMutex(s, key)
-	if err := mu.Lock(context.TODO()); err != nil {
-		log.Fatal("m lock err: ", err)
+// WithLock 获取分布式锁后执行 fn，支持 context 超时与错误返回。
+func (e *Etcd) WithLock(ctx context.Context, key string, ttl int, fn func() error) error {
+	if err := e.ensureOpen(); err != nil {
+		return err
+	}
+	if fn == nil {
+		return fmt.Errorf("lock callback is nil")
 	}
 
-	//do something
-	f()
-
-	if err := mu.Unlock(context.TODO()); err != nil {
-		log.Fatal("m unlock err: ", err)
+	session, err := concurrency.NewSession(e.client, concurrency.WithTTL(ttl))
+	if err != nil {
+		return fmt.Errorf("create etcd session: %w", err)
 	}
+	defer session.Close()
+
+	mu := concurrency.NewMutex(session, key)
+	if err := mu.Lock(ctx); err != nil {
+		return fmt.Errorf("acquire etcd lock: %w", err)
+	}
+
+	defer func() {
+		unlockCtx := context.WithoutCancel(ctx)
+		if unlockCtx.Err() != nil {
+			unlockCtx = context.Background()
+		}
+		_ = mu.Unlock(unlockCtx)
+	}()
+
+	return fn()
 }
