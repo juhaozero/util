@@ -28,6 +28,12 @@ func StringToNumber[T model.Number](data string) T {
 	return T(s)
 }
 
+// StringToFloat string类型转 float64类型
+func StringToFloat[T model.Float](data string) T {
+	s, _ := strconv.ParseFloat(data, 64)
+	return T(s)
+}
+
 // GetOnlyId 获取唯一id
 func GetOnlyId[T model.Number](num T) string {
 	id := uuid.New().String()
@@ -95,7 +101,7 @@ func BinarySearch[T model.Number](data []T, target T) int {
 
 // 数组转 string字符串
 func ArrayToString(array []any) string {
-	return strings.Replace(strings.Trim(fmt.Sprint(array), "[]"), " ", ",", -1)
+	return strings.Trim(strings.ReplaceAll(fmt.Sprint(array), " ", ","), "[]")
 }
 
 // 复制指针
@@ -107,28 +113,128 @@ func CopyPoint(m any) any {
 }
 
 // StructToMapString 结构体转map
-func StructToMapString(obj any) map[string]string {
-	mapping := make(map[string]string)
-	var valueOf = reflect.ValueOf(obj)
-	if valueOf.Kind() == reflect.Pointer {
-		valueOf = reflect.ValueOf(obj).Elem()
+func StructToMapString(obj any) (map[string]string, error) {
+	if obj == nil {
+		return nil, fmt.Errorf("obj must not be nil")
 	}
+
+	valueOf := reflect.ValueOf(obj)
+	if valueOf.Kind() == reflect.Pointer {
+		if valueOf.IsNil() {
+			return nil, fmt.Errorf("obj must not be nil")
+		}
+		valueOf = valueOf.Elem()
+	}
+	if valueOf.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("obj must be a struct or pointer to struct")
+	}
+
+	mapping := make(map[string]string)
+	typ := valueOf.Type()
 	for i := 0; i < valueOf.NumField(); i++ {
+		structField := typ.Field(i)
 		field := valueOf.Field(i)
-		jTag := valueOf.Type().Field(i).Tag.Get("json")
-		index := strings.Index(jTag, ",")
-		if index > 0 {
-			jTag = jTag[:index]
+		if !structField.IsExported() || !field.CanInterface() {
+			continue
+		}
+
+		jTag, ok := jsonFieldName(structField.Tag.Get("json"))
+		if !ok {
+			continue
 		}
 		if field.IsZero() {
 			continue
 		}
 		mapping[jTag] = fmt.Sprint(field.Interface())
 	}
-	return mapping
+	return mapping, nil
 }
 
-// GetNumIsEven 判断数字是否是偶数
-func GetNumIsEven[T model.Number](data T) bool {
-	return int64(data)&1 == 0
+// MapToStruct map转结构体
+func MapToStruct(data map[string]string, obj any) error {
+	if obj == nil {
+		return fmt.Errorf("obj must not be nil")
+	}
+
+	valueOf := reflect.ValueOf(obj)
+	if valueOf.Kind() != reflect.Pointer {
+		return fmt.Errorf("obj must be a pointer to struct")
+	}
+	if valueOf.IsNil() {
+		return fmt.Errorf("obj must not be nil")
+	}
+
+	valueOf = valueOf.Elem()
+	if valueOf.Kind() != reflect.Struct {
+		return fmt.Errorf("obj must be a pointer to struct")
+	}
+
+	typ := valueOf.Type()
+	for i := 0; i < valueOf.NumField(); i++ {
+		structField := typ.Field(i)
+		field := valueOf.Field(i)
+		if !field.IsValid() || !field.CanSet() {
+			continue
+		}
+
+		jTag, ok := jsonFieldName(structField.Tag.Get("json"))
+		if !ok {
+			continue
+		}
+
+		val, ok := data[jTag]
+		if !ok {
+			continue
+		}
+
+		if err := setFieldFromString(field, val); err != nil {
+			return fmt.Errorf("set field %s: %w", structField.Name, err)
+		}
+	}
+	return nil
+}
+
+func setFieldFromString(field reflect.Value, val string) error {
+	switch field.Kind() {
+	case reflect.String:
+		field.SetString(val)
+	case reflect.Bool:
+		b, err := strconv.ParseBool(val)
+		if err != nil {
+			return err
+		}
+		field.SetBool(b)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		n, err := strconv.ParseInt(val, 10, field.Type().Bits())
+		if err != nil {
+			return err
+		}
+		field.SetInt(n)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		n, err := strconv.ParseUint(val, 10, field.Type().Bits())
+		if err != nil {
+			return err
+		}
+		field.SetUint(n)
+	case reflect.Float32, reflect.Float64:
+		n, err := strconv.ParseFloat(val, field.Type().Bits())
+		if err != nil {
+			return err
+		}
+		field.SetFloat(n)
+	default:
+		return fmt.Errorf("unsupported type %s", field.Type())
+	}
+	return nil
+}
+
+func jsonFieldName(tag string) (string, bool) {
+	index := strings.Index(tag, ",")
+	if index > 0 {
+		tag = tag[:index]
+	}
+	if tag == "" || tag == "-" {
+		return "", false
+	}
+	return tag, true
 }

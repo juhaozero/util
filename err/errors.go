@@ -38,7 +38,7 @@ func newError(code int32, detail string) *Error {
 }
 
 // mysql 未找到
-func IsSqlNoFound(err error) bool {
+func IsSqlNotFound(err error) bool {
 	return errors.Is(err, gorm.ErrRecordNotFound)
 }
 

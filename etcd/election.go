@@ -20,7 +20,7 @@ func (le *LeaderElection) Close(ctx context.Context) error {
 	}
 	var err error
 	if le.Election != nil {
-		if resignErr := le.Election.Resign(ctx); resignErr != nil && err == nil {
+		if resignErr := le.Election.Resign(ctx); resignErr != nil {
 			err = resignErr
 		}
 	}
