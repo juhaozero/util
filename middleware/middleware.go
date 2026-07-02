@@ -82,7 +82,7 @@ func AccessLogHandler() gin.HandlerFunc {
 	}
 }
 
-// Logs 限制日志输出
+// Logs 限制gin日志输出
 func Logs() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		gin.LoggerWithConfig(gin.LoggerConfig{

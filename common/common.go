@@ -2,7 +2,6 @@ package common
 
 import (
 	"fmt"
-	"math/rand"
 	"reflect"
 	"strconv"
 	"strings"
@@ -30,9 +29,13 @@ func StringToNumber[T model.Number](data string) T {
 }
 
 // GetOnlyId 获取唯一id
-func GetOnlyId() string {
+func GetOnlyId[T model.Number](num T) string {
 	id := uuid.New().String()
-	return strings.ReplaceAll(id, "-", "")
+	id = strings.ReplaceAll(id, "-", "")
+	if int(num) > len(id) {
+		num = T(len(id))
+	}
+	return id[:num]
 }
 
 // GetKey 拼接key
@@ -44,12 +47,6 @@ func GetKey(key string, separator string, field ...string) (s string) {
 		data.WriteString(v)
 	}
 	return data.String()
-}
-
-// GetRandom 随机数区间
-func GetRandom[T model.Number](min, max T) T {
-	base := int64(min) + rand.Int63n(int64(max-min+1))
-	return T(base)
 }
 
 // Decimal 精确浮点加减
@@ -129,4 +126,9 @@ func StructToMapString(obj any) map[string]string {
 		mapping[jTag] = fmt.Sprint(field.Interface())
 	}
 	return mapping
+}
+
+// GetNumIsEven 判断数字是否是偶数
+func GetNumIsEven[T model.Number](data T) bool {
+	return int64(data)&1 == 0
 }
