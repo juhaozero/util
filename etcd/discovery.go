@@ -2,12 +2,11 @@ package etcd
 
 import (
 	"context"
+	"log/slog"
 	"maps"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
-	"github.com/juhaozero/util/log"
-	"go.uber.org/zap"
 )
 
 // ServiceEventType 服务变更类型。
@@ -95,7 +94,7 @@ func (ed *Etcd) watcher(ctx context.Context, prefix string) {
 	rch := ed.client.Watch(ctx, prefix, clientv3.WithPrefix())
 	for wresp := range rch {
 		if wresp.Err() != nil {
-			log.Default().Warn("etcd watch error", zap.String("prefix", prefix), zap.Error(wresp.Err()))
+
 		}
 		for _, ev := range wresp.Events {
 			switch ev.Type {
@@ -133,8 +132,7 @@ func (ed *Etcd) setServiceList(key, val string) {
 	ed.discovery[key] = val
 	handler := ed.onChange
 	ed.locker.Unlock()
-
-	log.Default().Info("发现服务", zap.String("key", key), zap.String("value", val))
+	slog.Info("setServiceList", "key", key, "val", val)
 	if handler != nil {
 		handler(ServiceEvent{Type: ServicePut, Key: key, Value: val})
 	}
@@ -145,8 +143,6 @@ func (ed *Etcd) delServiceList(key string) {
 	delete(ed.discovery, key)
 	handler := ed.onChange
 	ed.locker.Unlock()
-
-	log.Default().Info("服务下线", zap.String("key", key))
 	if handler != nil {
 		handler(ServiceEvent{Type: ServiceDelete, Key: key})
 	}

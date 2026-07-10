@@ -1,4 +1,4 @@
-package log
+package logs
 
 import (
 	"os"
@@ -59,10 +59,17 @@ func New(cfg Config) (*Logger, error) {
 	if cfg.Console || cfg.Filename == "" || cfg.LogPath == "" {
 		writers = append(writers, zapcore.AddSync(os.Stdout))
 	}
+	if cfg.IsDebug {
+		level = zap.DebugLevel
+	}
 
 	core := zapcore.NewCore(encoder, zapcore.NewMultiWriteSyncer(writers...), level)
 	// 添加调用者信息和堆栈跟踪
 	z := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1), zap.AddStacktrace(zapcore.ErrorLevel))
+
+	if cfg.IsDebug {
+		z = z.WithOptions(zap.Development())
+	}
 
 	return &Logger{
 		zap:   z,

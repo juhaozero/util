@@ -3,12 +3,11 @@ package etcd
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/juhaozero/util/log"
-	"go.uber.org/zap"
 )
 
 var (
@@ -128,9 +127,8 @@ func (sr *ServiceRegister) listenLeaseKeepAlive() {
 
 		resp, ok := <-ch
 		if !ok || resp == nil {
-			log.Default().Warn("etcd 租约续期中断，尝试重建", zap.Int64("leaseID", int64(leaseID)))
 			if err := sr.rebuildLease(); err != nil {
-				log.Default().Error("etcd 租约重建失败", zap.Error(err))
+				slog.Error("etcd 租约重建失败", "leaseID", leaseID, "error", err)
 				time.Sleep(time.Second)
 			}
 		}

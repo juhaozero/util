@@ -12,8 +12,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// DoubleToString 小数类型转 string类型
-func DoubleToString[T model.Float](data T) string {
+// FloatToStr 小数类型转 string类型
+func FloatToStr[T model.Float](data T) string {
 	return strconv.FormatFloat(float64(data), 'f', 2, 64)
 }
 
@@ -35,9 +35,11 @@ func StringToFloat[T model.Float](data string) T {
 }
 
 // GetOnlyId 获取唯一id
+// num 长度
 func GetOnlyId[T model.Number](num T) string {
 	id := uuid.New().String()
 	id = strings.ReplaceAll(id, "-", "")
+	// 最大长度
 	if int(num) > len(id) {
 		num = T(len(id))
 	}
