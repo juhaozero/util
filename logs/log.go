@@ -1,6 +1,8 @@
 package logs
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,7 +47,7 @@ func New(cfg Config) (*Logger, error) {
 
 	if cfg.Filename != "" && cfg.LogPath != "" {
 		fileWriter = &lumberjack.Logger{
-			Filename:   filepath.Join(cfg.LogPath, cfg.Filename),
+			Filename:   filepath.Join(cfg.LogPath, fmt.Sprintf("%s.log", cfg.Filename)),
 			MaxSize:    cfg.MaxSize,
 			MaxBackups: cfg.MaxBackups,
 			MaxAge:     cfg.MaxAge,
@@ -88,6 +90,15 @@ func Default() *Logger {
 		})
 	}
 	return defaultLogger
+}
+
+// Writer 返回日志写入器
+func (l *Logger) Writer() io.Writer {
+	if l.file != nil {
+		return l.file
+	}
+	return os.Stdout
+
 }
 
 // Zap 返回底层 zap.Logger，便于与第三方库集成。
